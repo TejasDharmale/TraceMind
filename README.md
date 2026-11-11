@@ -10,7 +10,7 @@ It aims to help developers detect behavioural regressions, discover missing test
 
 ---
 
-## 💡 The Problem
+## The Problem
 
 Software applications evolve continuously. Developers update functions, APIs, business logic, dependencies, and models.
 
@@ -32,7 +32,7 @@ However, developers also need a way to understand how software behaviour evolves
 
 ---
 
-## 🎯 The Proposed Solution
+## The Proposed Solution
 
 TraceMind observes selected software executions and builds a historical record of their behaviour.
 
@@ -54,7 +54,7 @@ AI is used selectively to explain meaningful changes and suggest additional test
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```text
               Developer Application
@@ -159,7 +159,7 @@ The objective is to use AI where reasoning adds value rather than treating an LL
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 tracemind/
@@ -210,7 +210,7 @@ tracemind/
 
 ---
 
-## 🚀 Development Roadmap
+## Development Roadmap
 
 The project is planned as an eight-week MVP development cycle.
 
@@ -243,7 +243,7 @@ The project is planned as an eight-week MVP development cycle.
 
 ---
 
-## 🔬 Example Use Case
+##  Example Use Case
 
 Consider a company maintaining a Python-based backend service.
 
@@ -262,7 +262,7 @@ This allows engineering teams to investigate potential regressions before deploy
 
 ---
 
-## 🔐 Security Considerations
+## Security Considerations
 
 TraceMind is designed with security considerations from the beginning:
 
@@ -277,7 +277,7 @@ Production deployment will require additional security and isolation controls.
 
 ---
 
-## 🎯 Long-Term Vision
+## Long-Term Vision
 
 The initial MVP focuses on Python applications.
 
@@ -295,7 +295,7 @@ The long-term goal is to make TraceMind a behavioural intelligence layer that he
 
 ---
 
-## 👨‍💻 Project Motivation
+## Project Motivation
 
 TraceMind is an independent engineering project exploring the intersection of:
 
