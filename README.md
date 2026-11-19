@@ -1,74 +1,35 @@
-<div align="center">
-
 # TraceMind
 
-**Add one decorator. Run two versions. See exactly what behaviour changed.**
+*Record Python function executions and compare behaviour between application versions.*
 
 [![PyPI](https://img.shields.io/pypi/v/tracemind-regression)](https://pypi.org/project/tracemind-regression/)
 [![Python](https://img.shields.io/pypi/pyversions/tracemind-regression)](https://pypi.org/project/tracemind-regression/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-</div>
+TraceMind is a Python SDK that records the inputs, outputs, errors, duration and application version of the functions you decorate. Because every trace carries a version label, you can run two versions of your code against the same inputs and see which functions now behave differently. An optional local LLM (through [Ollama](https://ollama.com)) can explain the differences.
 
----
+It is aimed at code where a small change can silently alter results, such as pricing, discounts, tax and billing rules.
 
-## What is TraceMind? (the plain English version)
+## Features
 
-Imagine you take a photo of your kitchen every day. If something goes missing, you can compare today's photo with yesterday's and spot it straight away.
+- One decorator, `@tracemind.track`, for sync and `async` functions.
+- Records arguments, return value, exception details, UTC start time, duration and app version.
+- Arguments are snapshotted **before** the call, so a function that mutates its inputs is still recorded correctly.
+- Traces are immutable and JSON-safe (`Trace.to_dict()` / `Trace.from_dict()`).
+- Bounded output: depth, collection size and string length are capped, cycles are cut, and `NaN`, `bytes` and memory addresses are normalised.
+- Never raises into your code. Tracking failures are logged at debug level and your function's result or exception passes through unchanged.
+- Optional explanations from a local Ollama model. Nothing leaves your machine.
+- No dependencies. Python 3.10+.
 
-**TraceMind does the same thing for software.** It quietly records what your functions do: what went in, what came out, how long it took, and whether it failed. Later, you can line up what version 1 of your app did next to what version 2 did, and see what changed.
+## Installation
 
-That matters because software can break **without anyone noticing**. A small edit to a discount rule, a tax calculation or a billing function can pass every test and still give customers different answers. TraceMind is built to catch that.
-
-> **Status:** TraceMind is young. Recording works today. Comparing versions and AI explanations are being built. See [What works today](#what-works-today).
-
----
-
-## A real example
-
-Your shop has a function that works out the price after a discount:
-
-```python
-def final_price(price, discount_percent):
-    return price - price * discount_percent / 100
-```
-
-A teammate "tidies it up" and accidentally changes the rounding. Your tests still pass, because nobody wrote a test for that exact case. But now some customers are charged a few cents more. Nobody notices for weeks.
-
-With TraceMind, both versions leave a record of what they returned for the same inputs. Comparing the two records shows the difference **before** customers do.
-
----
-
-## What works today
-
-| Feature | Status |
-|---|---|
-| Record function calls: inputs, result, errors, timing, app version | Available |
-| Works with normal and `async` functions | Available |
-| Safe by default: big or odd values are shortened, a tracking problem never breaks your app | Available |
-| Read the recorded traces from Python, or turn them into plain data (JSON friendly) | Available |
-| Save traces to disk, so version 1 and version 2 can be run separately | Planned |
-| Compare two versions and list what changed | Planned |
-| Plain language explanations from a local AI model (through [Ollama](https://ollama.com)) | Planned |
-| Store traces in PostgreSQL | Planned |
-
-These are honest statuses. The "Planned" rows are not built yet.
-
----
-
-## Quick start
-
-### 1. Install
-
-```bash
+```shell
 pip install "tracemind-regression>=0.1.2"
 ```
 
-You need Python 3.10 or newer. TraceMind has **no dependencies**, so it will not pull extra packages into your project.
+The distribution is named `tracemind-regression`; the import name is `tracemind`.
 
-You install `tracemind-regression`, but you import it as `tracemind`.
-
-### 2. Add the decorator
+## Quick start
 
 ```python
 import tracemind
@@ -82,13 +43,8 @@ def final_price(price, discount_percent):
 @tracemind.track
 def divide(a, b):
     return a / b
-```
 
-Your functions behave exactly as before. Return values are unchanged, and your own errors are raised as usual.
 
-### 3. Call them and look at what was recorded
-
-```python
 final_price(200, 10)
 
 try:
@@ -100,14 +56,12 @@ for trace in tracemind.get_records():
     print(trace.function_name, trace.status.value, trace.args, trace.return_value)
 ```
 
-Output:
-
 ```text
 final_price success [200, 10] 180.0
 divide error [1, 0] None
 ```
 
-Each record is a `Trace` object. Call `.to_dict()` to turn it into plain data:
+Each record is a `Trace`. `trace.to_dict()` returns plain data:
 
 ```python
 {
@@ -129,151 +83,126 @@ Each record is a `Trace` object. Call `.to_dict()` to turn it into plain data:
 }
 ```
 
-### 4. Label your app version
+## Usage
 
-Comparing versions only works if each trace knows which version made it. Set the label with an environment variable before you start your app:
+### Labelling the application version
 
-```bash
+Set `TRACEMIND_APP_VERSION` before starting your application. Traces from runs with different labels can then be compared.
+
+```shell
 # macOS / Linux
-TRACEMIND_APP_VERSION=v1 python your_app.py
+TRACEMIND_APP_VERSION=v1 python app.py
 
 # Windows PowerShell
-$env:TRACEMIND_APP_VERSION = "v1"; python your_app.py
+$env:TRACEMIND_APP_VERSION = "v1"; python app.py
 ```
 
-If you do not set it, traces are labelled `unknown`.
+Without it, traces are labelled `unknown`.
 
----
+### Reading and clearing traces
 
-## Using TraceMind in your own open source project
+```python
+tracemind.get_records()    # list[Trace], a snapshot
+tracemind.clear_records()  # empty the in-memory store (useful between tests)
+```
 
-1. **Install it** as a development tool, for example with `pip install tracemind-regression`, or add `tracemind-regression>=0.1.2` to your dev requirements.
-2. **Pick the functions that matter most.** Good candidates are the ones where a silent change would hurt: pricing, discounts, tax, scoring, parsing, permissions. You do not need to track everything.
-3. **Add `@tracemind.track`** above each one. That is the whole change to your code.
-4. **Set `TRACEMIND_APP_VERSION`** when you run each release or branch, for example to your version number or git commit.
-5. **Run your tests or a sample workload.** The recorded calls become the "photo" of that version's behaviour.
-6. **Read the traces** with `tracemind.get_records()`.
+### Comparing two versions
 
-Use `tracemind.clear_records()` to empty the store, which is handy between test cases.
+The SDK records traces; it does not include a comparison engine. [`examples/demo.py`](examples/demo.py) shows the workflow: run a workload under `v1`, save `trace.to_dict()` to disk, run it under `v2`, then match traces by function name and arguments and diff the results.
 
-> TraceMind keeps traces in memory for now. Saving them to a file and comparing two versions are the next things on the roadmap.
+```shell
+python examples/demo.py   # with TRACEMIND_APP_VERSION=v1, then =v2
+```
 
----
+### Explaining differences with a local LLM
 
-## What gets recorded
+`tracemind.llm_client` sends a list of differences to a local Ollama model and returns a plain language explanation.
 
-| Field | What it holds |
-|---|---|
-| `function_name`, `function_module` | Which function ran |
-| `args`, `kwargs` | What it was called with, as they were **before** the call |
-| `return_value` | What it returned |
-| `status` | `success` or `error` |
-| `error_type`, `error_message`, `error_traceback` | What went wrong, if anything |
-| `started_at` | When the call started, in UTC |
-| `duration_ms` | How long it took, in milliseconds |
-| `app_version` | The version label you set |
-| `metadata` | A free space for extra notes |
-| `id`, `schema_version` | A unique id and the record format version |
+```python
+from tracemind.llm_client import explain_changes, OllamaError
 
-Traces are **immutable**. Once a trace is created it describes the past and is not edited.
+changes = [
+    "final_price[12.34, 15]: 10.49 -> 10.48",
+    "final_price[20, 150]: -10.0 -> ERROR ValueError: discount cannot be more than 100%",
+]
 
----
+try:
+    print(explain_changes(changes))
+except OllamaError as error:
+    print(f"No explanation: {error}")
+```
 
-## Safe by default
+`OllamaError` is raised if Ollama is not running, the model is not installed, the request times out, or the reply is unusable. Treat the explanation as optional. The model only sees the lines you pass it, so use it to summarise a diff, not as the source of truth for what changed.
 
-- **It never breaks your app.** If recording fails for any reason, your function still returns its result. Your own exceptions are always re-raised unchanged.
-- **Inputs are saved before your function runs.** If a function changes its own arguments, the trace still shows what it was originally given.
-- **Values are kept small and clean.** Long text is shortened, large lists are trimmed, loops in data are cut, and odd values (such as `NaN`, raw bytes or memory addresses) are turned into safe text.
-- **Everything stays on your machine.** TraceMind does not send data anywhere.
+Requires a running Ollama server with a model pulled, for example `ollama pull mistral`.
 
-### Please be careful with sensitive data
+## Configuration
 
-Arguments and return values are recorded as they are. **Automatic redaction of secrets (passwords, tokens, personal data) is not built yet.** Until it is, do not decorate functions that receive secrets or personal data.
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `TRACEMIND_APP_VERSION` | `unknown` | Version label stored on every trace |
+| `TRACEMIND_LLM_MODEL` | `mistral` | Ollama model used by `explain_changes` |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama server address |
 
----
+## The `Trace` record
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `str` | UUID4 hex, generated automatically |
+| `schema_version` | `int` | Format version of the record |
+| `function_name` | `str` | `__qualname__` of the decorated function |
+| `function_module` | `str` | `__module__` of the decorated function |
+| `args` / `kwargs` | `list` / `dict` | Arguments as they were before the call, JSON-safe |
+| `return_value` | `Any` | JSON-safe return value, `None` on error |
+| `status` | `Status` | `Status.SUCCESS` or `Status.ERROR` |
+| `error_type` / `error_message` / `error_traceback` | `str \| None` | Set only when `status` is `ERROR` |
+| `started_at` | `datetime` | Timezone-aware, UTC |
+| `duration_ms` | `float` | Measured with `time.perf_counter()` |
+| `app_version` | `str` | Value of `TRACEMIND_APP_VERSION` |
+| `metadata` | `dict` | Free-form extra data |
+
+`Trace` is a frozen dataclass and validates itself on creation: `started_at` must be timezone-aware, `duration_ms` cannot be negative, and success and error fields cannot be mixed.
 
 ## How it works
 
 ```text
-Your function (decorated with @track)
-        |
-   tracker.py      watches the call: inputs, output, timing, errors
-        |
-   models.py       builds a structured, immutable Trace
-        |
-   collector.py    stores the traces (in memory for now)
-        |
-   comparison engine (planned)   compares traces between app versions
-        |
-   llm_client.py (planned)       asks a local Ollama model to explain the differences
+@track  ->  tracker.py    observes the call: inputs, output, timing, errors
+        ->  serialize.py  makes values JSON-safe and size-limited
+        ->  models.py     builds an immutable Trace
+        ->  collector.py  stores traces (thread-safe, in memory)
 ```
 
-Each part has one job, so storage can later move from memory to PostgreSQL without touching the decorator.
+| Module | Responsibility |
+|---|---|
+| `tracker.py` | The `@track` decorator |
+| `models.py` | `Trace` and `Status` |
+| `serialize.py` | `to_jsonable()`: bounded, strict-JSON conversion |
+| `collector.py` | `Collector` with an optional `max_records` cap |
+| `llm_client.py` | Ollama client built on `urllib` |
 
----
+Serialisation limits: depth 6, 50 items per collection, 1,000 characters per string, 8,000 characters per traceback.
 
-## Frequently asked questions
+## Limitations
 
-**Do I need to know AI or machine learning?**
-No. Recording works with plain Python. The AI explanations are planned and will be optional.
+- Traces are stored in memory only and are lost when the process exits. Persist them with `to_dict()` if you need them across runs.
+- Arguments and return values are recorded as they are. There is no built-in redaction, so do not decorate functions that handle secrets or personal data.
+- Only `Exception` is recorded. `BaseException` subclasses such as `asyncio.CancelledError` are not.
+- For methods, `self` is recorded as `args[0]` and serialised like any other object.
 
-**Will it slow down my app?**
-The decorator adds a small amount of work to each tracked call, so track the functions that matter, not everything. Planned settings will let you sample calls or turn tracking off.
+## Development
 
-**Does it send my data to the cloud?**
-No. Traces stay in your process. The planned AI explanations use a model running on your own computer through Ollama.
-
-**Is this a replacement for tests?**
-No. Tests check what you expected. TraceMind shows what *changed*, including things you did not think to test.
-
-**Does it work with `async` code?**
-Yes. `async def` functions are tracked the same way.
-
----
-
-## Roadmap
-
-- [x] Function execution tracking (`@tracemind.track`)
-- [x] Immutable, JSON friendly trace records
-- [x] In-memory collector with an optional size limit
-- [x] Automated tests
-- [ ] Configuration (`config.py`): app version, sampling, size limits, on/off switch
-- [ ] Save and load traces
-- [ ] Version comparison engine
-- [ ] Local AI explanations through Ollama
-- [ ] PostgreSQL storage
-- [ ] Automatic redaction of sensitive values
-
----
-
-## Contributing
-
-Contributions, ideas and bug reports are welcome. Please open an issue first for larger changes.
-
-To work on TraceMind itself:
-
-```bash
+```shell
 git clone https://github.com/TejasDharmale/TraceMind.git
 cd TraceMind
 python -m venv .venv
-# activate it, then:
+# activate the environment, then:
 pip install -e .
 pip install pytest
 python -m pytest
 ```
 
-The code lives in `sdk/tracemind/`:
-
-| File | Job |
-|---|---|
-| `tracker.py` | The `@track` decorator |
-| `models.py` | The `Trace` record and `Status` |
-| `collector.py` | Stores traces |
-| `serialize.py` | Makes values safe and small |
-| `config.py` | Settings (planned) |
-
----
+Contributions are welcome. Please open an issue before starting larger changes.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+[MIT](LICENSE)
