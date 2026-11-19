@@ -1,318 +1,279 @@
+<div align="center">
+
 # TraceMind
 
-### AI-Powered Software Behaviour Intelligence & Regression Detection
+**Add one decorator. Run two versions. See exactly what behaviour changed.**
 
-> **Understand how your software behaves. Detect what changes. Discover what your tests missed.**
+[![PyPI](https://img.shields.io/pypi/v/tracemind-regression)](https://pypi.org/project/tracemind-regression/)
+[![Python](https://img.shields.io/pypi/pyversions/tracemind-regression)](https://pypi.org/project/tracemind-regression/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-TraceMind is an AI-powered developer tool designed to observe software execution, learn behavioural patterns, and identify unexpected changes between software versions.
-
-It aims to help developers detect behavioural regressions, discover missing test cases, and understand the impact of software updates before they reach production.
-
----
-
-## The Problem
-
-Software applications evolve continuously. Developers update functions, APIs, business logic, dependencies, and models.
-
-Even when an application passes its existing tests, a new release can introduce unexpected behavioural changes.
-
-For example:
-
-- An API starts returning a different response structure.
-- A function produces unexpected outputs for certain inputs.
-- An update increases execution latency.
-- An AI model starts producing different predictions.
-- Existing tests fail to cover unusual input conditions.
-
-Traditional testing checks predefined expectations. Monitoring tools track system health and performance.
-
-However, developers also need a way to understand how software behaviour evolves across versions.
-
-**TraceMind aims to bridge this gap.**
+</div>
 
 ---
 
-## The Proposed Solution
+## What is TraceMind? (the plain English version)
 
-TraceMind observes selected software executions and builds a historical record of their behaviour.
+Imagine you take a photo of your kitchen every day. If something goes missing, you can compare today's photo with yesterday's and spot it straight away.
 
-When a new software version is introduced, it compares the previous and updated behaviour using representative inputs.
+**TraceMind does the same thing for software.** It quietly records what your functions do: what went in, what came out, how long it took, and whether it failed. Later, you can line up what version 1 of your app did next to what version 2 did, and see what changed.
 
-Its analysis engine identifies differences, detects unusual patterns, and helps developers investigate potential regressions.
+That matters because software can break **without anyone noticing**. A small edit to a discount rule, a tax calculation or a billing function can pass every test and still give customers different answers. TraceMind is built to catch that.
 
-AI is used selectively to explain meaningful changes and suggest additional test cases.
-
-### How It Works
-
-1. **Observe:** Capture selected function inputs, outputs, exceptions, and execution times through a Python SDK.
-2. **Store:** Send execution records to a backend and maintain historical trace data.
-3. **Compare:** Evaluate behavioural differences between software versions.
-4. **Detect:** Use statistical methods and machine learning to identify unusual patterns.
-5. **Generate:** Suggest additional regression tests for uncovered input conditions.
-6. **Explain:** Use an LLM to provide understandable explanations and test recommendations.
-7. **Visualise:** Display behavioural changes and analysis results through a developer dashboard.
+> **Status:** TraceMind is young. Recording works today. Comparing versions and AI explanations are being built. See [What works today](#what-works-today).
 
 ---
 
-## System Architecture
+## A real example
 
-```text
-              Developer Application
-                       |
-                       v
-              TraceMind Python SDK
-                       |
-                       v
-                 FastAPI Backend
-                       |
-                Validation Layer
-                /              \
-               v                v
-         PostgreSQL          Redis Queue
-                                  |
-                                  v
-                           Celery Workers
-                                  |
-                                  v
-                       Behaviour Analysis
-                          /           \
-                         v             v
-                    ML Engine     Test Generator
-                         \             /
-                          v           v
-                         AI Analysis
-                              |
-                              v
-                       Analysis Results
-                              |
-                     +--------+--------+
-                     |                 |
-                     v                 v
-                React Dashboard    CI/CD
+Your shop has a function that works out the price after a discount:
+
+```python
+def final_price(price, discount_percent):
+    return price - price * discount_percent / 100
 ```
 
-### Core Components
+A teammate "tidies it up" and accidentally changes the rounding. Your tests still pass, because nobody wrote a test for that exact case. But now some customers are charged a few cents more. Nobody notices for weeks.
 
-| Component | Responsibility |
-|---|---|
-| Python SDK | Capture execution traces |
-| FastAPI | API and data ingestion |
-| PostgreSQL | Store projects, versions and traces |
-| Redis | Background job queue |
-| Celery | Asynchronous processing |
-| Comparison Engine | Identify behavioural differences |
-| ML Engine | Detect unusual execution patterns |
-| AI Service | Explain changes and suggest tests |
-| React | Developer dashboard |
+With TraceMind, both versions leave a record of what they returned for the same inputs. Comparing the two records shows the difference **before** customers do.
 
 ---
 
-## 🧠 AI and Machine Learning Strategy
+## What works today
 
-TraceMind follows a hybrid architecture.
-
-Not every operation requires an LLM.
-
-| Operation | Approach |
+| Feature | Status |
 |---|---|
-| Trace collection | Python |
-| Duplicate detection | Hashing |
-| Output comparison | Deterministic algorithms |
-| Feature extraction | NumPy / pandas |
-| Anomaly detection | Scikit-learn |
-| Test generation | LLM |
-| Behaviour explanations | LLM |
-| Result caching | Fingerprinting |
+| Record function calls: inputs, result, errors, timing, app version | Available |
+| Works with normal and `async` functions | Available |
+| Safe by default: big or odd values are shortened, a tracking problem never breaks your app | Available |
+| Read the recorded traces from Python, or turn them into plain data (JSON friendly) | Available |
+| Save traces to disk, so version 1 and version 2 can be run separately | Planned |
+| Compare two versions and list what changed | Planned |
+| Plain language explanations from a local AI model (through [Ollama](https://ollama.com)) | Planned |
+| Store traces in PostgreSQL | Planned |
 
-### Token Optimisation
-
-The project aims to minimise unnecessary LLM API consumption through:
-
-- Selective LLM invocation.
-- Hash-based deduplication.
-- Caching previously generated explanations.
-- Sending compact, relevant execution records.
-- Structured JSON responses.
-- Keeping deterministic analysis outside the LLM.
-
-The objective is to use AI where reasoning adds value rather than treating an LLM as the entire backend.
+These are honest statuses. The "Planned" rows are not built yet.
 
 ---
 
-## 🛠️ Technology Stack
+## Quick start
 
-| Area | Technology |
-|---|---|
-| Language | Python |
-| SDK | Python |
-| Backend | FastAPI |
-| Database | PostgreSQL |
-| Queue | Redis |
-| Background Jobs | Celery |
-| Data Processing | NumPy, pandas |
-| Machine Learning | Scikit-learn |
-| AI Integration | Gemini API |
-| Frontend | React |
-| Testing | pytest, Hypothesis |
-| Containerisation | Docker |
-| Version Control | Git, GitHub |
+### 1. Install
 
----
-
-##  Project Structure
-
-```text
-tracemind/
-│
-├── sdk/
-│   ├── tracemind/
-│   │   ├── tracker.py
-│   │   ├── collector.py
-│   │   ├── serializer.py
-│   │   └── config.py
-│   └── tests/
-│
-├── backend/
-│   └── app/
-│       ├── api/
-│       ├── models/
-│       ├── schemas/
-│       ├── services/
-│       ├── database/
-│       └── main.py
-│
-├── workers/
-│   ├── tasks.py
-│   └── processor.py
-│
-├── engine/
-│   ├── comparator.py
-│   ├── features.py
-│   ├── anomaly.py
-│   ├── test_generator.py
-│   └── evaluator.py
-│
-├── ai/
-│   ├── analyzer.py
-│   ├── prompts.py
-│   └── cache.py
-│
-├── frontend/
-│   └── src/
-│
-├── infrastructure/
-│   └── docker-compose.yml
-│
-├── docs/
-├── README.md
-└── requirements.txt
+```bash
+pip install "tracemind-regression>=0.1.2"
 ```
 
----
+You need Python 3.10 or newer. TraceMind has **no dependencies**, so it will not pull extra packages into your project.
 
-## Development Roadmap
+You install `tracemind-regression`, but you import it as `tracemind`.
 
-The project is planned as an eight-week MVP development cycle.
+### 2. Add the decorator
 
-| Week | Milestone | Expected Deliverable |
-|---|---|---|
-| 01 | Python SDK | Function execution recorder |
-| 02 | Backend | FastAPI + PostgreSQL |
-| 03 | Comparison Engine | Version behaviour comparison |
-| 04 | ML Engine | Anomaly detection |
-| 05 | AI Integration | Test suggestions and explanations |
-| 06 | Frontend | React dashboard |
-| 07 | Infrastructure | Redis, Celery and Docker |
-| 08 | Finalisation | Testing, documentation and demo |
+```python
+import tracemind
 
-### Development Status
 
-- [ ] Python execution tracking SDK
-- [ ] Trace ingestion API
-- [ ] PostgreSQL integration
-- [ ] Behaviour comparison engine
-- [ ] ML anomaly detection
-- [ ] AI-powered test suggestions
-- [ ] AI-generated explanations
-- [ ] React dashboard
-- [ ] Background processing
-- [ ] Docker deployment
-- [ ] End-to-end testing
+@tracemind.track
+def final_price(price, discount_percent):
+    return price - price * discount_percent / 100
 
-*Note: These are planned milestones, not claims of completed functionality.*
 
----
+@tracemind.track
+def divide(a, b):
+    return a / b
+```
 
-##  Example Use Case
+Your functions behave exactly as before. Return values are unchanged, and your own errors are raised as usual.
 
-Consider a company maintaining a Python-based backend service.
+### 3. Call them and look at what was recorded
 
-A developer updates an existing function. The function still executes successfully, but its output changes for certain inputs.
+```python
+final_price(200, 10)
 
-TraceMind aims to:
+try:
+    divide(1, 0)
+except ZeroDivisionError:
+    pass
 
-1. Retrieve representative execution inputs from the previous version.
-2. Execute those inputs against the updated version in a controlled environment.
-3. Compare the old and new outputs.
-4. Identify unexpected behavioural changes.
-5. Suggest additional test cases.
-6. Generate an explanation for the developer.
+for trace in tracemind.get_records():
+    print(trace.function_name, trace.status.value, trace.args, trace.return_value)
+```
 
-This allows engineering teams to investigate potential regressions before deploying a new release.
+Output:
 
----
+```text
+final_price success [200, 10] 180.0
+divide error [1, 0] None
+```
 
-## Security Considerations
+Each record is a `Trace` object. Call `.to_dict()` to turn it into plain data:
 
-TraceMind is designed with security considerations from the beginning:
+```python
+{
+    'id': 'f93833137ec7449fa9f89367e66d737a',
+    'schema_version': 1,
+    'function_name': 'final_price',
+    'function_module': '__main__',
+    'args': [200, 10],
+    'kwargs': {},
+    'return_value': 180.0,
+    'status': 'success',
+    'error_type': None,
+    'error_message': None,
+    'error_traceback': None,
+    'started_at': '2026-11-19T22:23:02.382133+00:00',
+    'duration_ms': 0.003,
+    'app_version': 'v1',
+    'metadata': {},
+}
+```
 
-- Sensitive-data redaction before trace storage.
-- Configurable trace collection.
-- Environment-based API credentials.
-- Project-level access control.
-- Controlled execution for replayed test inputs.
-- No automatic modification of application source code.
+### 4. Label your app version
 
-Production deployment will require additional security and isolation controls.
+Comparing versions only works if each trace knows which version made it. Set the label with an environment variable before you start your app:
 
----
+```bash
+# macOS / Linux
+TRACEMIND_APP_VERSION=v1 python your_app.py
 
-## Long-Term Vision
+# Windows PowerShell
+$env:TRACEMIND_APP_VERSION = "v1"; python your_app.py
+```
 
-The initial MVP focuses on Python applications.
-
-Future possibilities include:
-
-- API behavioural intelligence.
-- Distributed system regression analysis.
-- AI model behaviour comparison.
-- CI/CD pipeline integration.
-- Automated test coverage discovery.
-- Multi-language SDK support.
-- Enterprise deployment and access controls.
-
-The long-term goal is to make TraceMind a behavioural intelligence layer that helps engineering teams understand how their software changes over time.
+If you do not set it, traces are labelled `unknown`.
 
 ---
 
-## Project Motivation
+## Using TraceMind in your own open source project
 
-TraceMind is an independent engineering project exploring the intersection of:
+1. **Install it** as a development tool, for example with `pip install tracemind-regression`, or add `tracemind-regression>=0.1.2` to your dev requirements.
+2. **Pick the functions that matter most.** Good candidates are the ones where a silent change would hurt: pricing, discounts, tax, scoring, parsing, permissions. You do not need to track everything.
+3. **Add `@tracemind.track`** above each one. That is the whole change to your code.
+4. **Set `TRACEMIND_APP_VERSION`** when you run each release or branch, for example to your version number or git commit.
+5. **Run your tests or a sample workload.** The recorded calls become the "photo" of that version's behaviour.
+6. **Read the traces** with `tracemind.get_records()`.
 
-- Artificial Intelligence
-- Machine Learning
-- Backend Engineering
-- Software Testing
-- System Design
-- Developer Infrastructure
+Use `tracemind.clear_records()` to empty the store, which is handy between test cases.
 
-The objective is to build a practical AI-enabled engineering product while developing deeper expertise in scalable backend systems, ML engineering, and efficient LLM integration.
+> TraceMind keeps traces in memory for now. Saving them to a file and comparing two versions are the next things on the roadmap.
 
 ---
 
-**Project:** TraceMind  
-**Category:** AI / ML Engineering + Developer Tools  
-**Initial Language Support:** Python  
-**Development Target:** 8-week MVP
+## What gets recorded
 
-⭐ If you find this project interesting, consider following its development.
+| Field | What it holds |
+|---|---|
+| `function_name`, `function_module` | Which function ran |
+| `args`, `kwargs` | What it was called with, as they were **before** the call |
+| `return_value` | What it returned |
+| `status` | `success` or `error` |
+| `error_type`, `error_message`, `error_traceback` | What went wrong, if anything |
+| `started_at` | When the call started, in UTC |
+| `duration_ms` | How long it took, in milliseconds |
+| `app_version` | The version label you set |
+| `metadata` | A free space for extra notes |
+| `id`, `schema_version` | A unique id and the record format version |
+
+Traces are **immutable**. Once a trace is created it describes the past and is not edited.
+
+---
+
+## Safe by default
+
+- **It never breaks your app.** If recording fails for any reason, your function still returns its result. Your own exceptions are always re-raised unchanged.
+- **Inputs are saved before your function runs.** If a function changes its own arguments, the trace still shows what it was originally given.
+- **Values are kept small and clean.** Long text is shortened, large lists are trimmed, loops in data are cut, and odd values (such as `NaN`, raw bytes or memory addresses) are turned into safe text.
+- **Everything stays on your machine.** TraceMind does not send data anywhere.
+
+### Please be careful with sensitive data
+
+Arguments and return values are recorded as they are. **Automatic redaction of secrets (passwords, tokens, personal data) is not built yet.** Until it is, do not decorate functions that receive secrets or personal data.
+
+---
+
+## How it works
+
+```text
+Your function (decorated with @track)
+        |
+   tracker.py      watches the call: inputs, output, timing, errors
+        |
+   models.py       builds a structured, immutable Trace
+        |
+   collector.py    stores the traces (in memory for now)
+        |
+   comparison engine (planned)   compares traces between app versions
+        |
+   llm_client.py (planned)       asks a local Ollama model to explain the differences
+```
+
+Each part has one job, so storage can later move from memory to PostgreSQL without touching the decorator.
+
+---
+
+## Frequently asked questions
+
+**Do I need to know AI or machine learning?**
+No. Recording works with plain Python. The AI explanations are planned and will be optional.
+
+**Will it slow down my app?**
+The decorator adds a small amount of work to each tracked call, so track the functions that matter, not everything. Planned settings will let you sample calls or turn tracking off.
+
+**Does it send my data to the cloud?**
+No. Traces stay in your process. The planned AI explanations use a model running on your own computer through Ollama.
+
+**Is this a replacement for tests?**
+No. Tests check what you expected. TraceMind shows what *changed*, including things you did not think to test.
+
+**Does it work with `async` code?**
+Yes. `async def` functions are tracked the same way.
+
+---
+
+## Roadmap
+
+- [x] Function execution tracking (`@tracemind.track`)
+- [x] Immutable, JSON friendly trace records
+- [x] In-memory collector with an optional size limit
+- [x] Automated tests
+- [ ] Configuration (`config.py`): app version, sampling, size limits, on/off switch
+- [ ] Save and load traces
+- [ ] Version comparison engine
+- [ ] Local AI explanations through Ollama
+- [ ] PostgreSQL storage
+- [ ] Automatic redaction of sensitive values
+
+---
+
+## Contributing
+
+Contributions, ideas and bug reports are welcome. Please open an issue first for larger changes.
+
+To work on TraceMind itself:
+
+```bash
+git clone https://github.com/TejasDharmale/TraceMind.git
+cd TraceMind
+python -m venv .venv
+# activate it, then:
+pip install -e .
+pip install pytest
+python -m pytest
+```
+
+The code lives in `sdk/tracemind/`:
+
+| File | Job |
+|---|---|
+| `tracker.py` | The `@track` decorator |
+| `models.py` | The `Trace` record and `Status` |
+| `collector.py` | Stores traces |
+| `serialize.py` | Makes values safe and small |
+| `config.py` | Settings (planned) |
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
