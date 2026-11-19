@@ -15,3 +15,7 @@ package-dir = {"" = "sdk"}
 
 [tool.setuptools.packages.find]
 where = ["sdk"]
+
+[tool.pytest.ini_options]
+pythonpath = ["sdk"]
+testpaths = ["tests"]
