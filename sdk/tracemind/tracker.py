@@ -1,81 +1,87 @@
 from __future__ import annotations
 
-
 import inspect
-import threading
+import logging
+import os
 import time
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Callable
 
+from .collector import collect
+from .models import Status, Trace
+from .serialize import to_jsonable
 
-_records: list[dict[str, Any]] = []
-_records_lock = threading.Lock()
+logger = logging.getLogger("tracemind")
 
-
-def _safe_repr(value: Any) -> str:
-	try:
-		return repr(value)
-	except Exception:
-		return f"<{type(value).__name__}>"
+# Temporary home for the version label until config.py exists.
+APP_VERSION = os.environ.get("TRACEMIND_APP_VERSION", "unknown")
 
 
-def _record(event: dict[str, Any]) -> None:
-	with _records_lock:
-		_records.append(event)
-
-
-def get_records() -> list[dict[str, Any]]:
-	"""Return a snapshot of all tracked endpoint calls."""
-	with _records_lock:
-		return [record.copy() for record in _records]
-
-
-def clear_records() -> None:
-	"""Remove all recorded endpoint calls."""
-	with _records_lock:
-		_records.clear()
+def _snapshot(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[list[Any], dict[str, Any]]:
+    """Serialize inputs BEFORE the call, so later mutation cannot change them."""
+    try:
+        return to_jsonable(list(args)), to_jsonable(kwargs)
+    except Exception:
+        logger.debug("tracemind: could not snapshot inputs", exc_info=True)
+        return [], {}
 
 
 def track(func: Callable[..., Any]) -> Callable[..., Any]:
-	"""Record execution time, inputs, outputs, and failures for ``func``."""
+    """Record execution time, inputs, outputs, and failures for ``func``."""
 
-	def save(start: float, args: tuple[Any, ...], kwargs: dict[str, Any],
-			 result: Any = None, error: BaseException | None = None) -> None:
-		event = {
-			"endpoint": f"{func.__module__}.{func.__qualname__}",
-			"timestamp": time.time(),
-			"duration_ms": round((time.perf_counter() - start) * 1000, 3),
-			"args": _safe_repr(args),
-			"kwargs": _safe_repr(kwargs),
-			"status": "error" if error else "success",
-			"result": _safe_repr(result) if error is None else None,
-			"error": _safe_repr(error) if error else None,
-		}
-		_record(event)
+    def save(started_at: datetime, start: float, args: list[Any], kwargs: dict[str, Any],
+             result: Any = None, error: BaseException | None = None) -> None:
+        # Take the duration first so serialization time is not counted.
+        duration_ms = round((time.perf_counter() - start) * 1000, 3)
+        try:
+            common = dict(
+                function_name=func.__qualname__,
+                function_module=func.__module__,
+                app_version=APP_VERSION,
+                duration_ms=duration_ms,
+                args=args,
+                kwargs=kwargs,
+                started_at=started_at,
+            )
+            if error is None:
+                trace = Trace(status=Status.SUCCESS,
+                              return_value=to_jsonable(result), **common)
+            else:
+                trace = Trace(status=Status.ERROR,
+                              **Trace.error_fields(error), **common)
+            collect(trace)
+        except Exception:
+            # Tracking must never break the user's app.
+            logger.debug("tracemind: failed to record trace", exc_info=True)
 
-	if inspect.iscoroutinefunction(func):
-		@wraps(func)
-		async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-			start = time.perf_counter()
-			try:
-				result = await func(*args, **kwargs)
-			except Exception as error:
-				save(start, args, kwargs, error=error)
-				raise
-			save(start, args, kwargs, result=result)
-			return result
+    if inspect.iscoroutinefunction(func):
+        @wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            args_snap, kwargs_snap = _snapshot(args, kwargs)
+            started_at = datetime.now(timezone.utc)
+            start = time.perf_counter()
+            try:
+                result = await func(*args, **kwargs)
+            except Exception as error:
+                save(started_at, start, args_snap, kwargs_snap, error=error)
+                raise
+            save(started_at, start, args_snap, kwargs_snap, result=result)
+            return result
 
-		return async_wrapper
+        return async_wrapper
 
-	@wraps(func)
-	def wrapper(*args: Any, **kwargs: Any) -> Any:
-		start = time.perf_counter()
-		try:
-			result = func(*args, **kwargs)
-		except Exception as error:
-			save(start, args, kwargs, error=error)
-			raise
-		save(start, args, kwargs, result=result)
-		return result
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        args_snap, kwargs_snap = _snapshot(args, kwargs)
+        started_at = datetime.now(timezone.utc)
+        start = time.perf_counter()
+        try:
+            result = func(*args, **kwargs)
+        except Exception as error:
+            save(started_at, start, args_snap, kwargs_snap, error=error)
+            raise
+        save(started_at, start, args_snap, kwargs_snap, result=result)
+        return result
 
-	return wrapper
+    return wrapper

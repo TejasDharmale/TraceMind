@@ -44,7 +44,8 @@ def to_jsonable(
     max_items: int = 50,
     max_str: int = 1000,
 ) -> Any:
-    active: set[int] = set()  # ids of containers on the current path (cycle guard)
+    # ids of containers on the current path (cycle guard)
+    active: set[int] = set()
 
     def placeholder(v: Any, **extra: Any) -> dict[str, Any]:
         return {"__type__": type(v).__qualname__, **extra}
@@ -107,3 +108,6 @@ def to_jsonable(
         return placeholder(v, repr=safe_repr(v, max_str))
 
     return convert(value, 0)
+
+# basically this code takes a python object and converts it into a JSON-safe representation, ensuring that the output is bounded in depth, size, and string length, while also handling cycles and special types like enums, dataclasses, and UUIDs.
+# so that it is compatible with Postgres JSONB and other strict JSON consumers.

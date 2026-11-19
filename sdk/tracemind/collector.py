@@ -1,54 +1,57 @@
-"""Storage for records produced by the TraceMind tracker."""
-
 from __future__ import annotations
 
+from collections import deque
 from threading import RLock
-from typing import Any, Iterable
+from typing import Iterator
+
+from .models import Trace
 
 
 class Collector:
-	"""Collect execution records in memory until they are requested."""
 
-	def __init__(self) -> None:
-		self._records: list[Any] = []
-		self._lock = RLock()
+    def __init__(self, max_records: int | None = None) -> None:
+        if max_records is not None and max_records <= 0:
+            raise ValueError("max_records must be a positive integer or None")
+        self._records: deque[Trace] = deque(maxlen=max_records)
+        self._lock = RLock()
 
-	def collect(self, record: Any) -> Any:
-		"""Store *record* and return it for convenient tracker integration."""
-		with self._lock:
-			self._records.append(record)
-		return record
+    def collect(self, record: Trace) -> Trace:
+        """Store *record* and return it for convenient tracker integration."""
+        with self._lock:
+            self._records.append(record)
+        return record
 
-	add = collect
+    def records(self) -> list[Trace]:
+        """Return a snapshot of all collected records."""
+        with self._lock:
+            return list(self._records)
 
-	def records(self) -> list[Any]:
-		"""Return a snapshot of all collected records."""
-		with self._lock:
-			return list(self._records)
+    def clear(self) -> None:
+        """Remove all collected records."""
+        with self._lock:
+            self._records.clear()
 
-	get_records = records
+    def __iter__(self) -> Iterator[Trace]:
+        return iter(self.records())
 
-	def __iter__(self) -> Iterable[Any]:
-		return iter(self.records())
-
-	def clear(self) -> None:
-		"""Remove all collected records."""
-		with self._lock:
-			self._records.clear()
-
-	def __len__(self) -> int:
-		with self._lock:
-			return len(self._records)
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._records)
 
 
 collector = Collector()
 
 
-def collect(record: Any) -> Any:
-	"""Store a record in the process-wide collector."""
-	return collector.collect(record)
+def collect(record: Trace) -> Trace:
+    """Store a trace in the process-wide collector."""
+    return collector.collect(record)
 
 
-def get_records() -> list[Any]:
-	"""Return records stored in the process-wide collector."""
-	return collector.records()
+def get_records() -> list[Trace]:
+    """Return traces stored in the process-wide collector."""
+    return collector.records()
+
+
+def clear_records() -> None:
+    """Remove all traces from the process-wide collector."""
+    collector.clear()
